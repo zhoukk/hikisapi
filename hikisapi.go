@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -245,6 +244,7 @@ type digestAuthTransport struct {
 	user      string
 	pass      string
 	transport http.RoundTripper
+	auth      *wwwAuthenticate
 }
 
 func newTransport(user, pass string) *digestAuthTransport {
@@ -252,17 +252,15 @@ func newTransport(user, pass string) *digestAuthTransport {
 		user,
 		pass,
 		http.DefaultTransport,
+		nil,
 	}
 }
 
 func (t *digestAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	rtreq := new(http.Request)
-	*rtreq = *req
-
-	rtreq.Header = make(http.Header)
-	for k, s := range req.Header {
-		rtreq.Header[k] = s
-	}
+	rtreq.Header = req.Header
+	rtreq.Method = req.Method
+	rtreq.URL = req.URL
 
 	reqbody := ""
 	if req.Body != nil {
@@ -272,19 +270,22 @@ func (t *digestAuthTransport) RoundTrip(req *http.Request) (*http.Response, erro
 		reqbody = string(buf)
 	}
 
+	if t.auth != nil {
+		auth := t.auth.authorize(t, req, reqbody)
+		req.Header.Set("Authorization", auth.string())
+	}
+
 	resp, err := t.transport.RoundTrip(req)
 	if err != nil || resp.StatusCode != 401 {
 		return resp, err
 	}
 
 	wwwauth := resp.Header.Get("WWW-Authenticate")
-	a := newWwwAuthenticate(wwwauth)
-
-	authresp := a.authorize(t, req, reqbody)
+	t.auth = newWwwAuthenticate(wwwauth)
+	auth := t.auth.authorize(t, req, reqbody)
 
 	resp.Body.Close()
-
-	rtreq.Header.Set("Authorization", authresp.string())
+	rtreq.Header.Set("Authorization", auth.string())
 
 	return t.transport.RoundTrip(rtreq)
 }
@@ -332,12 +333,7 @@ func NewClient(host, user, pass string) *IsApiClient {
 	}}
 }
 
-func (c *IsApiClient) Get(uri string, query url.Values, ret interface{}) error {
-	req, err := http.NewRequest(http.MethodGet, "", nil)
-	if err != nil {
-		return err
-	}
-	req.URL = &url.URL{Scheme: c.proto, Host: c.host, Path: uri, RawQuery: query.Encode()}
+func (c *IsApiClient) do(req *http.Request, ret interface{}) error {
 	resp, err := c.net.Do(req)
 	if err != nil {
 		return err
@@ -351,8 +347,60 @@ func (c *IsApiClient) Get(uri string, query url.Values, ret interface{}) error {
 		if err != nil {
 			return err
 		}
-		return errors.New(e.ErrorMsg)
+		return fmt.Errorf("%d %s err: %s, %s, %s", e.StatusCode, e.RequestURL, e.StatusString, e.SubStatusCode, e.ErrorMsg)
 	}
 
 	return xml.NewDecoder(resp.Body).Decode(&ret)
+}
+
+func (c *IsApiClient) Get(uri string, query url.Values, ret interface{}) error {
+	url := &url.URL{Scheme: c.proto, Host: c.host, Path: uri, RawQuery: query.Encode()}
+	req, err := http.NewRequest(http.MethodGet, url.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	return c.do(req, ret)
+}
+
+func (c *IsApiClient) Post(uri string, in interface{}, ret interface{}) error {
+	buf := bytes.Buffer{}
+	err := xml.NewEncoder(&buf).Encode(in)
+	if err != nil {
+		return err
+	}
+
+	url := &url.URL{Scheme: c.proto, Host: c.host, Path: uri}
+	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		return err
+	}
+
+	return c.do(req, ret)
+}
+
+func (c *IsApiClient) Put(uri string, in interface{}, ret interface{}) error {
+	buf := bytes.Buffer{}
+	err := xml.NewEncoder(&buf).Encode(in)
+	if err != nil {
+		return err
+	}
+
+	url := &url.URL{Scheme: c.proto, Host: c.host, Path: uri}
+	req, err := http.NewRequest(http.MethodPut, url.String(), bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		return err
+	}
+
+	return c.do(req, ret)
+}
+
+func (c *IsApiClient) Delete(uri string, query url.Values, ret interface{}) error {
+	url := &url.URL{Scheme: c.proto, Host: c.host, Path: uri, RawQuery: query.Encode()}
+	req, err := http.NewRequest(http.MethodDelete, url.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	return c.do(req, ret)
 }
