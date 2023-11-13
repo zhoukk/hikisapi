@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -339,6 +340,9 @@ func (c *IsApiClient) do(req *http.Request, ret interface{}) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return errors.New("Unauthorized")
+		}
 		e := ResponseStatus{}
 		err = xml.NewDecoder(resp.Body).Decode(&e)
 		if err != nil {
