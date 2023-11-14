@@ -532,8 +532,10 @@ type FTPTestDescription struct {
 	PortNo               string   `xml:"portNo,omitempty"  json:"portNo,omitempty"`
 	UserName             string   `xml:"userName,omitempty"  json:"userName,omitempty"`
 	Password             string   `xml:"password,omitempty"  json:"password,omitempty"`
-	PassiveModeEnabled   bool     `xml:"passiveModeEnabled"  json:"passiveModeEnabled"`
 	AnnoyFtp             bool     `xml:"annoyftp"  json:"annoyftp"`
+	PicArchivingInterval int      `xml:"picArchivingInterval" json:"picArchivingInterval"`
+	PicNameRuleType      string   `xml:"picNameRuleType,omitempty" json:"picNameRuleType,omitempty"`
+	UploadPicture        bool     `xml:"uploadPicture,omitempty" json:"uploadPicture,omitempty"`
 	UploadPath           struct {
 		PathDepth      int    `xml:"pathDepth"  json:"pathDepth"`
 		TopDirNameRule string `xml:"topDirNameRule,omitempty"  json:"topDirNameRule,omitempty"`
@@ -615,9 +617,10 @@ type Track struct {
 	HolidaySchedule struct {
 		ScheduleBlock ScheduleBlock `xml:"ScheduleBlock,omitempty"  json:"ScheduleBlock,omitempty"`
 	} `xml:"HolidaySchedule,omitempty"  json:"HolidaySchedule,omitempty"`
-	IntelligentRecord bool `xml:"IntelligentRecord"  json:"IntelligentRecord"`
-	DelayTime         int  `xml:"delayTime"  json:"delayTime"`
-	DurationEnabled   bool `xml:"durationEnabled"  json:"durationEnabled"`
+	IntelligentRecord bool   `xml:"IntelligentRecord,omitempty"  json:"IntelligentRecord,omitempty"`
+	DelayTime         int    `xml:"DelayTime,omitempty"  json:"DelayTime,omitempty"`
+	DurationEnabled   bool   `xml:"DurationEnabled,omitempty"  json:"DurationEnabled,omitempty"`
+	Duration          string `xml:"Duration" json:"Duration"`
 }
 
 type TrackList struct {

@@ -19,11 +19,13 @@ func main() {
 
 	c := hikisapi.NewClient(host, user, pass)
 
+	var device_id string
+
 	info, err := c.NET_DVR_Login()
 	if err != nil {
 		log.Println(err)
 	} else {
-		device_id := info.SubSerialNumber
+		device_id = info.SubSerialNumber
 		if device_id == "" {
 			device_id = info.SerialNumber[len(info.SerialNumber)-9:]
 		}
@@ -40,7 +42,7 @@ func main() {
 		ftp.AddressingFormatType = "ipaddress"
 		ftp.IpAddress = "192.168.1.100"
 		ftp.PortNo = "2121"
-		ftp.UserName = info.SubSerialNumber
+		ftp.UserName = device_id
 		ftp.Password = "123456"
 		ftp.UploadPicture = true
 
